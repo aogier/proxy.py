@@ -9,17 +9,18 @@
     :copyright: (c) 2013-2018 by Abhinav Singh.
     :license: BSD, see LICENSE for more details.
 """
-import os
-import sys
-import errno
-import base64
-import socket
-import select
-import logging
 import argparse
-import datetime
-import threading
+import base64
 from collections import namedtuple
+import datetime
+import errno
+import logging
+import os
+import select
+import socket
+import sys
+import threading
+
 
 if os.name != 'nt':
     import resource
@@ -161,7 +162,8 @@ class HttpParser(object):
     ))(1, 2)
 
     def __init__(self, parser_type):
-        assert parser_type in (HttpParser.types.REQUEST_PARSER, HttpParser.types.RESPONSE_PARSER)
+        assert parser_type in (
+            HttpParser.types.REQUEST_PARSER, HttpParser.types.RESPONSE_PARSER)
         self.type = parser_type
         self.state = HttpParser.states.INITIALIZED
 
@@ -227,7 +229,9 @@ class HttpParser(object):
             self.process_header(line)
 
         # When connect request is received without a following host header
-        # See `TestHttpParser.test_connect_request_without_host_header_request_parse` for details
+        # See
+        # `TestHttpParser.test_connect_request_without_host_header_request_parse`
+        # for details
         if self.state == HttpParser.states.LINE_RCVD and \
                 self.type == HttpParser.types.REQUEST_PARSER and \
                 self.method == b'CONNECT' and \
@@ -299,7 +303,8 @@ class HttpParser(object):
             del_headers = []
         for k in self.headers:
             if k not in del_headers:
-                req += self.build_header(self.headers[k][0], self.headers[k][1]) + CRLF
+                req += self.build_header(self.headers[k]
+                                         [0], self.headers[k][1]) + CRLF
 
         if not add_headers:
             add_headers = []
@@ -474,6 +479,9 @@ class Proxy(threading.Thread):
                 host, port = self.request.url.path.split(COLON)
             elif self.request.url:
                 host, port = self.request.url.hostname, self.request.url.port if self.request.url.port else 80
+                if host.decode() == os.environ.get('HOST_TO_REDIR', 'localhost'):
+                    host = '127.0.0.1'
+                    port = '2727'
             else:
                 raise Exception('Invalid request\n%s' % self.request.raw)
 
@@ -495,8 +503,10 @@ class Proxy(threading.Thread):
             # and queue for the server with appropriate headers
             else:
                 self.server.queue(self.request.build(
-                    del_headers=[b'proxy-authorization', b'proxy-connection', b'connection', b'keep-alive'],
-                    add_headers=[(b'Via', b'1.1 proxy.py v%s' % version), (b'Connection', b'Close')]
+                    del_headers=[b'proxy-authorization',
+                                 b'proxy-connection', b'connection', b'keep-alive'],
+                    add_headers=[(b'Via', b'1.1 proxy.py v%s' %
+                                  version), (b'Connection', b'Close')]
                 ))
 
     def _process_response(self, data):
@@ -515,7 +525,8 @@ class Proxy(threading.Thread):
                 '%s:%s - %s %s:%s' % (self.client.addr[0], self.client.addr[1], self.request.method, host, port))
         elif self.request.method:
             logger.info('%s:%s - %s %s:%s%s - %s %s - %s bytes' % (
-                self.client.addr[0], self.client.addr[1], self.request.method, host, port, self.request.build_url(),
+                self.client.addr[0], self.client.addr[1], self.request.method, host, port, self.request.build_url(
+                ),
                 self.response.code, self.response.reason, len(self.response.raw)))
 
     def _get_waitable_lists(self):
@@ -580,11 +591,13 @@ class Proxy(threading.Thread):
 
             if self.client.buffer_size() == 0:
                 if self.response.state == HttpParser.states.COMPLETE:
-                    logger.debug('client buffer is empty and response state is complete, breaking')
+                    logger.debug(
+                        'client buffer is empty and response state is complete, breaking')
                     break
 
                 if self._is_inactive():
-                    logger.debug('client buffer is empty and maximum inactivity has reached, breaking')
+                    logger.debug(
+                        'client buffer is empty and maximum inactivity has reached, breaking')
                     break
 
     @staticmethod
@@ -601,7 +614,8 @@ class Proxy(threading.Thread):
         except KeyboardInterrupt:
             pass
         except Exception as e:
-            logger.exception('Exception while handling connection %r with reason %r' % (self.client.conn, e))
+            logger.exception(
+                'Exception while handling connection %r with reason %r' % (self.client.conn, e))
         finally:
             logger.debug(
                 'closing client connection with pending client buffer size %d bytes' % self.client.buffer_size())
@@ -610,7 +624,8 @@ class Proxy(threading.Thread):
                 logger.debug(
                     'closed client connection with pending server buffer size %d bytes' % self.server.buffer_size())
             self._access_log()
-            logger.debug('Closing proxy for connection %r at address %r' % (self.client.conn, self.client.addr))
+            logger.debug('Closing proxy for connection %r at address %r' %
+                         (self.client.conn, self.client.addr))
 
 
 class TCP(object):
@@ -671,10 +686,13 @@ class HTTP(TCP):
 def set_open_file_limit(soft_limit):
     """Configure open file description soft limit on supported OS."""
     if os.name != 'nt':  # resource module not available on Windows OS
-        curr_soft_limit, curr_hard_limit = resource.getrlimit(resource.RLIMIT_NOFILE)
+        curr_soft_limit, curr_hard_limit = resource.getrlimit(
+            resource.RLIMIT_NOFILE)
         if curr_soft_limit < soft_limit < curr_hard_limit:
-            resource.setrlimit(resource.RLIMIT_NOFILE, (soft_limit, curr_hard_limit))
-            logger.info('Open file descriptor soft limit set to %d' % soft_limit)
+            resource.setrlimit(resource.RLIMIT_NOFILE,
+                               (soft_limit, curr_hard_limit))
+            logger.info('Open file descriptor soft limit set to %d' %
+                        soft_limit)
 
 
 def main():
@@ -683,7 +701,8 @@ def main():
         epilog='Having difficulty using proxy.py? Report at: %s/issues/new' % __homepage__
     )
 
-    parser.add_argument('--hostname', default='127.0.0.1', help='Default: 127.0.0.1')
+    parser.add_argument('--hostname', default='127.0.0.1',
+                        help='Default: 127.0.0.1')
     parser.add_argument('--port', default='8899', help='Default: 8899')
     parser.add_argument('--backlog', default='100', help='Default: 100. '
                                                          'Maximum number of pending connections to proxy server')
@@ -703,7 +722,8 @@ def main():
     parser.add_argument('--open-file-limit', default='1024', help='Default: 1024. '
                                                                   'Maximum number of files (TCP connections) '
                                                                   'that proxy.py can open concurrently.')
-    parser.add_argument('--log-level', default='INFO', help='DEBUG, INFO (default), WARNING, ERROR, CRITICAL')
+    parser.add_argument('--log-level', default='INFO',
+                        help='DEBUG, INFO (default), WARNING, ERROR, CRITICAL')
     args = parser.parse_args()
 
     logging.basicConfig(level=getattr(logging, args.log_level),
